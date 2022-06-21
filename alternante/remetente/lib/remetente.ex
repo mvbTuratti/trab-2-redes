@@ -42,9 +42,9 @@ defmodule Remetente do
   end
 
   defp send_message(data) do
-    IO.puts("\n===============================\n\nEnvio:\n")
-    IO.puts("ACK: #{data.data}\n")
-    IO.puts("Dados:\n")
+    IO.puts("\n===============================\n\nEnvio\n")
+    IO.puts("ACK: #{data.ack}\n")
+    IO.puts("Dados:\t")
     IO.inspect(data)
     :gen_tcp.send(data.socket, <<data.seqnum::size(4)-unit(8), data.ack::size(4)-unit(8),0::size(4)-unit(8), data.data::size(20)-unit(8)>>)
   end
@@ -53,7 +53,7 @@ defmodule Remetente do
     send_message(data)
     with {:ok, msg} <- :gen_tcp.recv(data.socket, 8, 1000)
     do
-      IO.puts("Resposta recebida, ack recebido:\n")
+      IO.puts("Resposta recebida\n")
       <<d::size(4)-unit(8), _rest::binary>> = msg
       IO.puts("ACK recebido: #{d}\n\n====================================")
       case state do
