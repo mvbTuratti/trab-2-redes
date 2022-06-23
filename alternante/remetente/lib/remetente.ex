@@ -1,6 +1,6 @@
 defmodule Remetente do
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter]
-
+  use Bitwise
   # Client
 
   def start_link() do
@@ -46,7 +46,21 @@ defmodule Remetente do
     IO.puts("ACK: #{data.ack}\n")
     IO.puts("Dados:\t")
     IO.inspect(data)
-    :gen_tcp.send(data.socket, <<data.seqnum::size(4)-unit(8), data.ack::size(4)-unit(8),0::size(4)-unit(8), data.data::size(20)-unit(8)>>)
+    <<a::size(4)-unit(8), b::size(4)-unit(8),d::size(4)-unit(8), e::size(4)-unit(8), f::size(4)-unit(8)>> = <<data.data::size(20)-unit(8)>>
+    checksum = a+b+d+e+f
+      |> Integer.digits(2)
+      |> Enum.take(-4)
+      |> Enum.map(&(bxor(&1,1)))
+      |> Enum.reduce(<<>>, fn x, acc -> acc <> <<x::size(1)-unit(8)>> end)
+      |> check_helper()
+
+    IO.puts("Checksum:\t")
+    IO.inspect(checksum)
+
+    payload = <<data.seqnum::size(4)-unit(8), data.ack::size(4)-unit(8)>>  <> checksum <> <<data.data::size(20)-unit(8)>>
+    IO.puts("Mensagem enviada:\n")
+    IO.inspect(payload)
+    :gen_tcp.send(data.socket, payload)
   end
 
   defp check_message(data, state) do
@@ -66,4 +80,9 @@ defmodule Remetente do
         check_message(data,state)
     end
   end
+
+  defp check_helper(<<_>> = v), do: <<0,0,0>> <> v
+  defp check_helper(<<_, _>> = v), do: <<0,0>> <> v
+  defp check_helper(<<_,_,_>> = v), do: <<0>> <> v
+  defp check_helper(v), do: v
 end

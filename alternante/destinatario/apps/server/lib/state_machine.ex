@@ -1,5 +1,7 @@
 defmodule StateMachine do
 
+  use Bitwise
+
   def serve(socket, ack \\ 0) do
     {msg, ack} = read_line(socket, ack)
     write_line(msg, socket)
@@ -33,19 +35,44 @@ defmodule StateMachine do
     end
   end
   defp parse_packet(<<>>, _ack), do: {:error, "probability settings void message"}
-  defp parse_packet(<<seqnun::size(4)-unit(8), acknum::size(4)-unit(8), checksum::size(4)-unit(8), payload::binary>>, ack) do
+  defp parse_packet(<<seqnun::size(4)-unit(8), acknum::size(4)-unit(8), checksum::size(4)-unit(8), payload::size(20)-unit(8)>> = msg, ack) do
+    IO.inspect(msg)
     IO.puts("Message received! \n\n")
-    IO.puts("sequence number: #{seqnun}\nACK: #{acknum}\nchecksum: #{checksum}\npayload:")
-    IO.inspect(payload)
+    IO.puts("sequence number: #{seqnun}\nACK: #{acknum}\nchecksum:\n")
+    IO.inspect(<<checksum::size(4)-unit(8)>>)
+    IO.puts("payload:")
+    IO.inspect(<<payload::size(20)-unit(8)>>)
+    <<z::size(1)-unit(8), x::size(1)-unit(8), y::size(1)-unit(8), c::size(1)-unit(8)>> = <<checksum::size(4)-unit(8)>>
+    <<a::size(4)-unit(8), b::size(4)-unit(8),d::size(4)-unit(8), e::size(4)-unit(8), f::size(4)-unit(8)>> = <<payload::size(20)-unit(8)>>
+    IO.puts("Valor checksum calculado com o payload")
+
+    (a + b + d + e + f)
+    |> Integer.digits(2)
+    |> Enum.take(-4)
+    |> help_check()
+    |> IO.inspect()
+    |> Enum.zip([z,x,y,c])
+    |> Enum.map(fn {a,b} -> bor(a,b) end)
+    |> Enum.any?(fn x-> x != 1 end)
+    |> create_msg(acknum, ack, checksum)
+
+  end
+
+  defp help_check([_] = l), do: [0,0,0 | l]
+  defp help_check([_, _] = l), do: [0,0 | l]
+  defp help_check([_,_,_] = l), do: [0 | l]
+  defp help_check(l), do: l
+
+  defp create_msg(false, _acknum, ack, checksum), do: {<<0,0,0,ack>> <> <<checksum::size(4)-unit(8)>>, ack}
+  defp create_msg(true, acknum, ack, checksum) do
     cond do
       acknum == ack ->
         ack = (ack == 1 && 0) || 1  #muda entre 0 e 1, invertendo.
         {<<acknum::size(4)-unit(8)>> <> <<checksum::size(4)-unit(8)>>, ack}
       true ->
-        {<<0,0,0,ack>> <> <<0::size(4)-unit(8)>>, ack}
+        {<<0,0,0,ack>> <> <<checksum::size(4)-unit(8)>>, ack}
     end
   end
-
   defp write_line(line, socket) do
     :gen_tcp.send(socket, line)
   end
