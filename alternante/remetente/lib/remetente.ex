@@ -49,9 +49,10 @@ defmodule Remetente do
     <<a::size(4)-unit(8), b::size(4)-unit(8),d::size(4)-unit(8), e::size(4)-unit(8), f::size(4)-unit(8)>> = <<data.data::size(20)-unit(8)>>
     checksum = a+b+d+e+f
       |> Integer.digits(2)
-      |> Enum.take(-4)
+      |> Enum.take(-32)
+      |> correct_bit_size()
       |> Enum.map(&(bxor(&1,1)))
-      |> Enum.reduce(<<>>, fn x, acc -> acc <> <<x::size(1)-unit(8)>> end)
+      |> Enum.into(<<>>, fn bit -> <<bit :: 1>> end)
       |> check_helper()
 
     IO.puts("Checksum:\t")
@@ -79,6 +80,12 @@ defmodule Remetente do
         IO.puts("Timed out response. Retry.\n")
         check_message(data,state)
     end
+  end
+
+  defp correct_bit_size(list) do
+    l = length(list)
+    ms = for _ <- 1..32-l, into: [], do: 0
+    ms ++ list
   end
 
   defp check_helper(<<_>> = v), do: <<0,0,0>> <> v
