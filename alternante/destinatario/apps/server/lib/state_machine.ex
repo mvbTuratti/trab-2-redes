@@ -52,7 +52,7 @@ defmodule StateMachine do
     |> Enum.take(-32)
     |> correct_bit_size()
     |> Enum.zip(check_as_bit)
-    |> Enum.map(fn {a,b} -> bor(a,b) end)
+    |> Enum.map(fn {a,b} -> bxor(a,b) end)
     |> Enum.any?(fn x-> x != 1 end)
     |> create_msg(acknum, ack, checksum)
 
